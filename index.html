@@ -41,7 +41,7 @@ small{color:var(--mu)}
 <section class="card"><div class="row"><h3 id="sct"></h3><span class="badge" id="dm"></span></div>
 <p class="sub" id="scs"></p><div class="chips" id="chips"></div>
 <div class="drop" id="drop"><div class="cam">📷</div><b id="chs"></b><small id="fn"></small></div>
-<input type="file" id="file" accept="image/*" hidden></section>
+<div id="cb" style="display:flex;gap:8px;margin-top:10px"></div><input type="file" id="file" accept="image/*" hidden><input type="file" id="cam" accept="image/*" capture="environment" hidden></section>
 <section class="card" id="kc"></section><div id="out"></div>
 <section class="card"><div class="lbl" id="hl2"></div><h3 id="ht"></h3><div id="hist"></div>
 <button class="btn g" id="clr" style="margin-top:10px"></button></section>
@@ -111,6 +111,7 @@ function speak(d){stopAll();const tx=text(d),lc=U[L].lc,lg=lc.slice(0,2);let v=n
  const q=chunks(tx);let i=0;const next=()=>{if(i>=q.length)return;aud=new Audio("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl="+lg+"&q="+encodeURIComponent(q[i++]));aud.onended=next;aud.play().catch(()=>{});};next();}
 const UK={mr:{t:"खरे AI स्कॅन",h:"Gemini API key टाका (फुकट: aistudio.google.com/apikey). key फक्त तुमच्या फोनमध्ये राहते.",sv:"जतन करा",rm:"key काढा",on:"● AI विश्लेषण",an:"तपासत आहे…",er:"AI त्रुटी – डेमो अंदाज दाखवला: ",nl:"हे पानाचे चित्र वाटत नाही. जवळून स्पष्ट फोटो घ्या."},
 en:{t:"Real AI scan",h:"Paste a Gemini API key (free: aistudio.google.com/apikey). Key stays only on your phone.",sv:"Save",rm:"Remove key",on:"● AI ANALYSIS",an:"Analysing…",er:"AI error – showing demo estimate: ",nl:"This doesn't look like a leaf. Take a closer, clear photo."}};
+UK.mr.cam="📷 कॅमेरा";UK.mr.gal="🖼 गॅलरी";UK.en.cam="📷 Camera";UK.en.gal="🖼 Gallery";
 const KEY=()=>localStorage.gkey||"";
 async function ai(img){const c=document.createElement("canvas"),s=Math.min(1,800/Math.max(img.width,img.height));c.width=img.width*s;c.height=img.height*s;
  c.getContext("2d").drawImage(img,0,0,c.width,c.height);const b64=c.toDataURL("image/jpeg",.8).split(",")[1];
@@ -123,7 +124,7 @@ async function ai(img){const c=document.createElement("canvas"),s=Math.min(1,800
 function render(){const u=U[L],i=I();
  $("hi").textContent=u.hi;$("sb").textContent=u.sb;$("hl").textContent=u.hl;$("h2").innerHTML=u.h2;$("hp").textContent=u.hp;
  $("sct").textContent=u.sct;$("dm").textContent=KEY()?UK[L].on:u.dm;$("scs").textContent=u.scs;$("chs").textContent=u.chs;$("hl2").textContent=u.hl2;$("ht").textContent=u.ht;
- $("clr").textContent=u.clr;$("nt").textContent=u.nt;$("lang").value=L;const k2=UK[L];$("kc").innerHTML=`<h3>${k2.t}</h3><p class="sub">${k2.h}</p>`+(KEY()?`<button class="btn g" id="krm">${k2.rm}</button>`:`<input id="kin" placeholder="AIza..." class="inp"><button class="btn" id="ksv">${k2.sv}</button>`);if($("ksv"))$("ksv").onclick=()=>{const v=$("kin").value.trim();if(v){localStorage.gkey=v;render();}};if($("krm"))$("krm").onclick=()=>{localStorage.removeItem("gkey");render();};
+ $("clr").textContent=u.clr;$("nt").textContent=u.nt;$("lang").value=L;const k2=UK[L];$("cb").innerHTML=`<button class="btn" id="bc" style="flex:1;margin:0">${k2.cam}</button><button class="btn g" id="bg" style="flex:1;margin:0">${k2.gal}</button>`;$("bc").onclick=()=>$("cam").click();$("bg").onclick=()=>$("file").click();$("kc").innerHTML=`<h3>${k2.t}</h3><p class="sub">${k2.h}</p>`+(KEY()?`<button class="btn g" id="krm">${k2.rm}</button>`:`<input id="kin" placeholder="AIza..." class="inp"><button class="btn" id="ksv">${k2.sv}</button>`);if($("ksv"))$("ksv").onclick=()=>{const v=$("kin").value.trim();if(v){localStorage.gkey=v;render();}};if($("krm"))$("krm").onclick=()=>{localStorage.removeItem("gkey");render();};
  $("dt").textContent="FIELD INTELLIGENCE · "+new Date().toLocaleDateString(L=="mr"?"mr-IN":"en-IN",{day:"numeric",month:"long",year:"numeric"});
  $("chips").innerHTML=Object.keys(CR).map(k=>`<button class="chip ${k==crop?"on":""}" data-c="${k}">${CR[k][i]}</button>`).join("");
  document.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{crop=b.dataset.c;localStorage.crop=crop;render();});
@@ -143,7 +144,7 @@ function render(){const u=U[L],i=I();
 $("drop").onclick=()=>$("file").click();
 $("lang").onchange=e=>{L=e.target.value;localStorage.lang2=L;stopAll();render();};
 $("clr").onclick=()=>{localStorage.hist="[]";render();};
-$("file").onchange=e=>{const f=e.target.files[0];if(!f)return;$("fn").textContent=f.name;const img=new Image();
+const scanH=e=>{const f=e.target.files[0];if(!f)return;$("fn").textContent=f.name;const img=new Image();
  img.onload=async()=>{let x,cl,conf,score,msg="";
   if(KEY()){$("fn").textContent=UK[L].an;try{const o=await ai(img);if(o.is_leaf===false){$("fn").textContent=UK[L].nl;return;}
    x={n:[o.disease_mr,o.disease_en],d:[o.desc_mr,o.desc_en],g:o.healthy?["निरोगी","Healthy"]:["AI","AI"],t:[o.treat_mr,o.treat_en],p:[o.prev_mr,o.prev_en],c:[o.care_mr,o.care_en]};
@@ -155,6 +156,7 @@ $("file").onchange=e=>{const f=e.target.files[0];if(!f)return;$("fn").textConten
   const h=hist();h.unshift({n:x.n,cl,conf,th:thumb(img),date:new Date().toLocaleDateString()});try{localStorage.hist=JSON.stringify(h.slice(0,10))}catch(z){}
   render();$("fn").textContent=msg?msg.slice(0,140):f.name;speak(last);$("out").scrollIntoView({behavior:"smooth"});};
  img.src=URL.createObjectURL(f);e.target.value="";};
+$("file").onchange=scanH;$("cam").onchange=scanH;
 let TH=localStorage.theme||"light";function applyTh(){document.documentElement.dataset.theme=TH;$("th").textContent=TH=="light"?"🌙":"☀️";document.querySelector("meta[name=theme-color]").content=TH=="light"?"#f6f4ec":"#141210";}
 $("th").onclick=()=>{TH=TH=="light"?"dark":"light";localStorage.theme=TH;applyTh();};applyTh();
 if(window.speechSynthesis)speechSynthesis.onvoiceschanged=()=>{};render();
