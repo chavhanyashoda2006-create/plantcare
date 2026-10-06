@@ -1,0 +1,82 @@
+<!doctype html><html lang="mr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PlantCare</title>
+<style>
+body{margin:0 auto;background:#141210;color:#d9d4b8;font-family:system-ui,sans-serif;padding:16px;max-width:560px}
+.card{background:#0c0b0a;border:1px solid #2a2722;border-radius:20px;padding:16px;margin-bottom:14px}
+button,select{background:#2e7d32;color:#fff;border:0;border-radius:12px;padding:12px 16px;font-size:16px}
+select{background:#222;color:#d9d4b8}.row{display:flex;gap:8px;align-items:center;justify-content:space-between}
+img.p{width:100%;border-radius:14px}.ring{font-size:42px;font-weight:700}.warn{color:#c8631a}.ok{color:#4caf50}
+.tag{display:inline-block;background:#1b1a17;border-radius:8px;padding:6px 10px;margin:4px 4px 0 0;font-size:14px}
+.h{display:flex;gap:10px;align-items:center;margin:8px 0}.h img{width:48px;height:48px;object-fit:cover;border-radius:8px}
+small{opacity:.7}
+</style></head><body>
+<div class="row"><h2 id="t_title"></h2><select id="lang"><option value="mr">मराठी</option><option value="en">English</option></select></div>
+<div class="card"><input type="file" id="file" accept="image/*" capture="environment" hidden>
+<button id="pick"></button> <small id="busy"></small></div>
+<div id="result"></div>
+<div class="card"><b id="t_hist"></b> <button id="clr" style="padding:4px 10px;font-size:13px;background:#333"></button><div id="hist"></div></div>
+<small id="note"></small>
+<script>
+// 5 classes (rog) - navin rog ithe add kara
+const D={
+healthy:{en:"Healthy leaf",mr:"निरोगी पान",de:"No disease detected.",dm:"कोणताही रोग आढळला नाही.",te:"Keep regular watering|Check weekly",tm:"नियमित पाणी द्या|दर आठवड्याला पाहणी करा"},
+early_blight:{en:"Early blight",mr:"करपा (अर्ली ब्लाइट)",de:"Brown spots on leaves.",dm:"पानांवर तपकिरी ठिपके.",te:"Remove infected leaves|Spray copper oxychloride or mancozeb|Avoid overhead watering",tm:"रोगट पाने काढा|कॉपर ऑक्सिक्लोराईड किंवा मॅन्कोझेब फवारा|वरून पाणी देऊ नका"},
+leaf_curl:{en:"Leaf curl / yellowing",mr:"पर्णगुच्छ / पाने पिवळी पडणे",de:"Yellowing, curling leaves; whitefly or nutrient problem.",dm:"पाने पिवळी व गुंडाळलेली; पांढरी माशी किंवा अन्नद्रव्य कमतरता.",te:"Control whitefly|Use yellow sticky traps|Check nutrients",tm:"पांढरी माशी नियंत्रित करा|पिवळे चिकट सापळे लावा|अन्नद्रव्ये तपासा"},
+powdery:{en:"Powdery mildew",mr:"भुरी",de:"White powdery coating on leaves.",dm:"पानांवर पांढरी भुकटी.",te:"Spray wettable sulphur|Do not crowd plants",tm:"पाण्यात मिसळणारे गंधक फवारा|झाडे दाटीने लावू नका"},
+rust:{en:"Rust",mr:"तांबेरा",de:"Orange-brown pustules on leaves.",dm:"पानांवर नारिंगी-तपकिरी फोडे.",te:"Remove infected leaves|Spray hexaconazole",tm:"रोगट पाने काढा|हेक्साकोनाझोल फवारा"}};
+const T={mr:{title:"🌿 प्लांटकेअर",pick:"📷 पानाचा फोटो घ्या / निवडा",busy:"तपासत आहे…",hist:"मागील तपासण्या",clr:"पुसा",score:"आरोग्य गुण",conf:"खात्री",tips:"पुढील उपाय",listen:"🔊 ऐका",good:"चांगले",watch:"लक्ष द्या",lang:"mr-IN",
+note:"ही डेमो आवृत्ती आहे – रंगावर आधारित अंदाज. अचूक निदानासाठी कृषी केंद्राचा सल्ला घ्या.",say:(n,s,t)=>`निदान: ${n}. आरोग्य गुण ${s}. उपाय: ${t}`},
+en:{title:"🌿 PlantCare",pick:"📷 Take / choose leaf photo",busy:"Analysing…",hist:"Past scans",clr:"Clear",score:"Health score",conf:"confidence",tips:"Next steps",listen:"🔊 Listen",good:"Good",watch:"Needs attention",lang:"en-IN",
+note:"Demo version – colour-based estimate. Consult your local agri centre for accurate diagnosis.",say:(n,s,t)=>`Diagnosis: ${n}. Health score ${s}. Steps: ${t}`}};
+let L=localStorage.lang||"mr",last=null;const $=i=>document.getElementById(i);
+const hist=()=>{try{return JSON.parse(localStorage.hist||"[]")}catch(e){return[]}};
+
+function classify(img){ // colour analysis on 100x100 canvas
+ const c=document.createElement("canvas");c.width=c.height=100;const x=c.getContext("2d");x.drawImage(img,0,0,100,100);
+ const p=x.getImageData(0,0,100,100).data;let n=0,br=0,ye=0,wh=0,or=0;
+ for(let i=0;i<p.length;i+=4){const r=p[i]/255,g=p[i+1]/255,b=p[i+2]/255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;
+  if(mx<.15)continue;n++;const s=mx?d/mx:0;let h=0;
+  if(d){h=mx==r?((g-b)/d)%6:mx==g?(b-r)/d+2:(r-g)/d+4;h*=60;if(h<0)h+=360;}
+  if(s<.12&&mx>.8)wh++;
+  else if(h>=10&&h<40&&s>.6&&mx>.7)or++;
+  else if(h>=10&&h<40&&s>.3&&mx<=.7)br++;
+  else if(h>=40&&h<70&&s>.4&&mx>.5)ye++;}
+ const f=v=>v/Math.max(n,1);const R={wh:f(wh),or:f(or),br:f(br),ye:f(ye)};
+ const sc=[["powdery",R.wh/.12],["rust",R.or/.08],["early_blight",R.br/.10],["leaf_curl",R.ye/.12]].sort((a,b)=>b[1]-a[1])[0];
+ if(sc[1]<1)return{key:"healthy",conf:.8+Math.random()*.1};
+ return{key:sc[0],conf:Math.min(.95,.6+sc[1]*.12)};}
+
+function thumb(img){const c=document.createElement("canvas");c.width=c.height=96;const x=c.getContext("2d");
+ const s=Math.min(img.width,img.height);x.drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,96,96);return c.toDataURL("image/jpeg",.6);}
+
+function speak(d){const t=T[L],k=D[d.key];const u=new SpeechSynthesisUtterance(t.say(k[L],d.score,k[L=="mr"?"tm":"te"].split("|").join(". ")));
+ u.lang=t.lang;const v=speechSynthesis.getVoices().find(v=>v.lang.replace("_","-").startsWith(t.lang.slice(0,2)));if(v)u.voice=v;
+ speechSynthesis.cancel();speechSynthesis.speak(u);}
+
+function show(d){last=d;const t=T[L],k=D[d.key],ok=d.score>=70;
+ $("result").innerHTML=`<div class="card"><img class="p" src="${d.img}">
+ <div class="row"><div><div class="ring ${ok?"ok":"warn"}">${d.score}/100</div><small>${t.score} · ${ok?t.good:t.watch}</small></div>
+ <div class="tag">${Math.round(d.conf*100)}% ${t.conf}</div></div>
+ <h3>${k[L]}</h3><p>${k[L=="mr"?"dm":"de"]}</p><b>${t.tips}</b>
+ <div>${k[L=="mr"?"tm":"te"].split("|").map(x=>`<span class="tag">${x}</span>`).join("")}</div>
+ <p><button id="say">${t.listen}</button></p></div>`;$("say").onclick=()=>speak(d);}
+
+function renderHist(){$("hist").innerHTML=hist().map(x=>`<div class="h"><img src="${x.th}"><div>${D[x.key][L]}<br><small>${Math.round(x.conf*100)}% · ${x.date}</small></div></div>`).join("");}
+function ui(){const t=T[L];$("lang").value=L;$("t_title").textContent=t.title;$("pick").textContent=t.pick;
+ $("t_hist").textContent=t.hist;$("clr").textContent=t.clr;$("note").textContent=t.note;if(last)show(last);renderHist();}
+
+$("pick").onclick=()=>$("file").click();
+$("lang").onchange=e=>{L=e.target.value;localStorage.lang=L;ui();};
+$("clr").onclick=()=>{localStorage.hist="[]";renderHist();};
+$("file").onchange=e=>{const f=e.target.files[0];if(!f)return;$("busy").textContent=T[L].busy;
+ const img=new Image();img.onload=()=>{const r=classify(img),score=r.key=="healthy"?Math.min(100,90+Math.round(r.conf*10)):Math.max(10,100-Math.round(r.conf*45));
+  const big=document.createElement("canvas");const sc=Math.min(1,600/img.width);big.width=img.width*sc;big.height=img.height*sc;
+  big.getContext("2d").drawImage(img,0,0,big.width,big.height);
+  const d={key:r.key,conf:r.conf,score,img:big.toDataURL("image/jpeg",.7)};
+  const h=hist();h.unshift({key:d.key,conf:d.conf,th:thumb(img),date:new Date().toLocaleDateString()});
+  try{localStorage.hist=JSON.stringify(h.slice(0,10))}catch(e){}
+  $("busy").textContent="";show(d);speak(d);renderHist();};
+ img.src=URL.createObjectURL(f);e.target.value="";};
+speechSynthesis.onvoiceschanged=()=>{};ui();
+</script></body></html>
